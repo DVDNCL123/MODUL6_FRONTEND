@@ -90,6 +90,10 @@ class ApiService {
     if (response.statusCode == 200) {
       final List<dynamic> jsonData = json.decode(response.body)['data'];
       return jsonData.map((json) => Produk.fromJson(json)).toList();
+    } else if (response.statusCode == 401) {
+      // TASK: Penanganan Error Token (Expired)
+      // Lempar exception '401' agar bisa ditangkap di UI
+      throw Exception('401');
     } else {
       throw Exception('Gagal memuat produk');
     }
@@ -119,8 +123,9 @@ class ApiService {
       headers: headers,
       body: json.encode(produk.toJson()),
     );
-    if (response.statusCode == 200)
+    if (response.statusCode == 200) {
       return ApiResponse.fromJson(json.decode(response.body));
+    }
     return ApiResponse(status: false, data: 'Gagal Update');
   }
 
@@ -128,8 +133,9 @@ class ApiService {
     final url = Uri.parse('$_baseUrl/produk/$id');
     final headers = await _getAuthHeaders();
     final response = await http.delete(url, headers: headers);
-    if (response.statusCode == 200)
+    if (response.statusCode == 200) {
       return ApiResponse.fromJson(json.decode(response.body));
+    }
     return ApiResponse(status: false, data: 'Gagal Delete');
   }
 }

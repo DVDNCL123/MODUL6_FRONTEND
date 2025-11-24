@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // 1. Import SharedPreferences
 
 import '../models/produk.dart';
 import '../services/api_service.dart';
@@ -25,6 +26,17 @@ class _ProdukListPageState extends State<ProdukListPage> {
     setState(() {
       _futureProduk = _apiService.getProduk();
     });
+  }
+
+  // -----------------------------------------------------------
+  // Fungsi Logout
+  // -----------------------------------------------------------
+  Future<void> _logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('token'); // Hapus token dari memori
+    if (!mounted) return;
+    // Kembali ke halaman login dan hapus riwayat navigasi
+    Navigator.pushReplacementNamed(context, '/login');
   }
 
   // -----------------------------------------------------------
@@ -75,7 +87,40 @@ class _ProdukListPageState extends State<ProdukListPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Daftar Produk')),
+      appBar: AppBar(
+        title: const Text('Daftar Produk'),
+        // 2. Tambahkan Tombol Logout di AppBar
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: 'Logout',
+            onPressed: () async {
+              // Konfirmasi Logout
+              final confirm = await showDialog<bool>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('Logout'),
+                  content: const Text('Apakah Anda yakin ingin keluar?'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text('Batal'),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      child: const Text('Ya'),
+                    ),
+                  ],
+                ),
+              );
+
+              if (confirm == true) {
+                _logout();
+              }
+            },
+          ),
+        ],
+      ),
 
       body: FutureBuilder<List<Produk>>(
         future: _futureProduk,
@@ -85,6 +130,18 @@ class _ProdukListPageState extends State<ProdukListPage> {
           }
 
           if (snapshot.hasError) {
+            // 3. Penanganan Error Token (Auto Logout 401)
+            // Jika pesan error mengandung "401", berarti token expired/invalid
+            if (snapshot.error.toString().contains('401')) {
+              // Gunakan addPostFrameCallback untuk menghindari error saat build
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                _logout();// Panggil fungsi logout yang sudah kita buat tadi
+              });
+              return const Center(
+                child: Text('Sesi habis, harap login kembali...'),
+              );
+            }
+
             return Center(child: Text('Error: ${snapshot.error}'));
           }
 
